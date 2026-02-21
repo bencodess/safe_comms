@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SafeComms API</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #111417;
+      --panel: #1b2127;
+      --panel-alt: #232b33;
+      --text: #f6f8fb;
+      --muted: #a6b0bc;
+      --brand: #6ee7b7;
+      --danger: #ff7b7b;
+      --ok: #b3ffca;
+      --border: #35404d;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--text);
+      font-family: "Space Grotesk", sans-serif;
+      background:
+        radial-gradient(800px 380px at -10% -10%, #1d3649 0%, rgba(29, 54, 73, 0) 60%),
+        radial-gradient(700px 400px at 120% -10%, #4a3521 0%, rgba(74, 53, 33, 0) 55%),
+        var(--bg);
+      padding: 20px;
+    }
+
+    .wrap {
+      max-width: 1100px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 16px;
+    }
+
+    .hero, .card {
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      background: linear-gradient(160deg, var(--panel) 0%, var(--panel-alt) 100%);
+    }
+
+    .hero {
+      grid-column: 1 / -1;
+      padding: 18px 20px;
+    }
+
+    .hero h1 { margin: 0; font-size: 1.55rem; }
+    .hero p { margin: 8px 0 0; color: var(--muted); }
+
+    .card { grid-column: span 4; padding: 14px; }
+    .card h2 { margin: 0 0 10px; font-size: 1rem; }
+
+    label {
+      display: block;
+      margin-bottom: 10px;
+      color: var(--muted);
+      font-size: .8rem;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+    }
+
+    input, textarea {
+      width: 100%;
+      margin-top: 6px;
+      border: 1px solid var(--border);
+      background: #0f1419;
+      border-radius: 10px;
+      padding: 10px;
+      color: var(--text);
+      font-family: "IBM Plex Mono", monospace;
+      font-size: .9rem;
+    }
+
+    textarea { min-height: 120px; resize: vertical; }
+
+    button {
+      border: 0;
+      border-radius: 999px;
+      background: var(--brand);
+      color: #0b1a13;
+      font-weight: 700;
+      padding: 10px 14px;
+      cursor: pointer;
+    }
+
+    .status {
+      margin-top: 10px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: #0f1419;
+      padding: 10px;
+      font-family: "IBM Plex Mono", monospace;
+      font-size: .83rem;
+      white-space: pre-wrap;
+      word-break: break-word;
+      color: var(--muted);
+    }
+
+    .status.ok { color: var(--ok); }
+    .status.err { color: var(--danger); }
+
+    .full { grid-column: span 12; }
+
+    @media (max-width: 980px) {
+      .card { grid-column: span 12; }
+      body { padding: 12px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <section class="hero">
+      <h1>SafeComms Moderation API</h1>
+      <p>Kein Login, kein Secret. Nur schnelle Checks fuer Text, Bildbeschreibung und Audio-Transcript.</p>
+    </section>
+
+    <section class="card full">
+      <h2>Config</h2>
+      <label>Base URL
+        <input id="baseUrl" placeholder="http://localhost:8000" />
+      </label>
+      <button id="saveConfig">Save</button>
+      <div id="configStatus" class="status"></div>
+    </section>
+
+    <section class="card">
+      <h2>Text Check</h2>
+      <label>Text
+        <textarea id="textInput" placeholder="write message text..."></textarea>
+      </label>
+      <button id="checkText">Check Text</button>
+      <div id="textStatus" class="status"></div>
+    </section>
+
+    <section class="card">
+      <h2>Image Check</h2>
+      <label>Image Description
+        <textarea id="imageInput" placeholder="describe image content..."></textarea>
+      </label>
+      <button id="checkImage">Check Image</button>
+      <div id="imageStatus" class="status"></div>
+    </section>
+
+    <section class="card">
+      <h2>Audio Check</h2>
+      <label>Audio Transcript
+        <textarea id="audioInput" placeholder="paste transcript..."></textarea>
+      </label>
+      <button id="checkAudio">Check Audio</button>
+      <div id="audioStatus" class="status"></div>
+    </section>
+
+    <section class="card full">
+      <h2>Model Text Check (Local)</h2>
+      <label>Text (model)
+        <textarea id="aiTextInput" placeholder="text for local model check"></textarea>
+      </label>
+      <label>Threshold (0.0 - 1.0)
+        <input id="aiThreshold" value="0.5" />
+      </label>
+      <button id="checkTextAi">Check Model</button>
+      <div id="aiTextStatus" class="status"></div>
+    </section>
+  </main>
+
+  <script>
+    const el = (id) => document.getElementById(id);
+    const DEFAULT_BASE_URL = "http://127.0.0.1:8000";
+
+    function normalizeBaseUrl(raw) {
+      const value = (raw || "").trim();
+      if (!value) return window.location.origin && window.location.origin !== "null" ? window.location.origin : DEFAULT_BASE_URL;
+      return value.replace(/\/+$/, "");
+    }
+
+    const state = {
+      baseUrl: normalizeBaseUrl(localStorage.getItem("safecomms.baseUrl") || window.location.origin),
+    };
+
+    el("baseUrl").value = state.baseUrl;
+
+    function setStatus(node, msg, ok = true) {
+      node.textContent = msg;
+      node.className = `status ${ok ? "ok" : "err"}`;
+    }
+
+    function saveConfig() {
+      state.baseUrl = normalizeBaseUrl(el("baseUrl").value);
+      localStorage.setItem("safecomms.baseUrl", state.baseUrl);
+      setStatus(el("configStatus"), `Base URL saved: ${state.baseUrl}`);
+    }
+
+    async function callApi(path, payload) {
+      let res;
+      try {
+        res = await fetch(`${state.baseUrl}${path}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+      } catch (err) {
+        throw new Error(
+          `NetworkError: cannot reach ${state.baseUrl}. Start API with 'uvicorn main:app --reload' and use http://127.0.0.1:8000`
+        );
+      }
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(`${res.status}: ${body.detail || "request failed"}`);
+      }
+      return body;
+    }
+
+    function renderResult(data) {
+      return JSON.stringify(data, null, 2);
+    }
+
+    el("saveConfig").addEventListener("click", saveConfig);
+
+    el("checkText").addEventListener("click", async () => {
+      saveConfig();
+      try {
+        const data = await callApi("/check/text", { text: el("textInput").value });
+        setStatus(el("textStatus"), renderResult(data), data.safe);
+      } catch (err) {
+        setStatus(el("textStatus"), err.message, false);
+      }
+    });
+
+    el("checkImage").addEventListener("click", async () => {
+      saveConfig();
+      try {
+        const data = await callApi("/check/image", { description: el("imageInput").value });
+        setStatus(el("imageStatus"), renderResult(data), data.safe);
+      } catch (err) {
+        setStatus(el("imageStatus"), err.message, false);
+      }
+    });
+
+    el("checkAudio").addEventListener("click", async () => {
+      saveConfig();
+      try {
+        const data = await callApi("/check/audio", { transcript: el("audioInput").value });
+        setStatus(el("audioStatus"), renderResult(data), data.safe);
+      } catch (err) {
+        setStatus(el("audioStatus"), err.message, false);
+      }
+    });
+
+    el("checkTextAi").addEventListener("click", async () => {
+      saveConfig();
+      try {
+        const threshold = Number(el("aiThreshold").value || "0.5");
+        const data = await callApi(`/check/text-ai?threshold=${encodeURIComponent(threshold)}`, {
+          text: el("aiTextInput").value
+        });
+        setStatus(el("aiTextStatus"), renderResult(data), data.safe);
+      } catch (err) {
+        setStatus(el("aiTextStatus"), err.message, false);
+      }
+    });
+  </script>
+</body>
+</html>
