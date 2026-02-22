@@ -55,7 +55,7 @@ TRANSFORMERS_OFFLINE=1
 
 | Endpoint | Method | Description |
 |---|---|---|
-| `/` | `GEt` | Main moderation UI |
+| `/` | `GET` | Main moderation UI |
 | `/check/text` | `POST` | Rule-based text moderation |
 | `/check/audio` | `POST` | Rule-based transcript moderation |
 | `/check/text-ai` | `POST` | Local model text moderation |
