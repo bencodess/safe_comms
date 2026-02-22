@@ -5,3 +5,5 @@ __pycache__/
 safecomms.db
 *.pyc
 models/
+
+.idea/
