@@ -27,10 +27,7 @@
       min-height: 100vh;
       color: var(--text);
       font-family: "Space Grotesk", sans-serif;
-      background:
-        radial-gradient(800px 380px at -10% -10%, #1d3649 0%, rgba(29, 54, 73, 0) 60%),
-        radial-gradient(700px 400px at 120% -10%, #4a3521 0%, rgba(74, 53, 33, 0) 55%),
-        var(--bg);
+      background: var(--bg);
       padding: 20px;
     }
 
@@ -133,7 +130,7 @@
   <main class="wrap">
     <section class="hero">
       <h1>SafeComms Moderation API</h1>
-      <p>Fast moderation checks for text and audio transcripts.</p>
+      <p>Fast moderation checks for text and audio.</p>
     </section>
 
     <section class="card full">
@@ -156,8 +153,8 @@
 
     <section class="card">
       <h2>Audio Check</h2>
-      <label>Audio Transcript
-        <textarea id="audioInput" placeholder="paste transcript..."></textarea>
+      <label>Audio
+        <textarea id="audioInput" placeholder="paste audio text..."></textarea>
       </label>
       <button id="checkAudio">Check Audio</button>
       <div id="audioStatus" class="status"></div>

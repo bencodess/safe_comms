@@ -6,7 +6,7 @@ SafeComms is a local-first moderation platform built with FastAPI.
 It provides:
 
 - Rule-based moderation for text
-- Rule-based moderation for audio transcripts
+- Rule-based moderation for audio
 - Optional local AI moderation for text (`/check/text-ai`)
 - Health monitoring with uptime/downtime and response-time probes
 - Password-protected admin workflow for error management
@@ -150,7 +150,7 @@ Checks transcript text with the same moderation logic.
 Request:
 
 ```json
-{ "transcript": "example transcript" }
+{ "transcript": "example audio text" }
 ```
 
 ### `POST /check/text-ai?threshold=0.5`

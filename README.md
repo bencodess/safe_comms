@@ -3,7 +3,7 @@
 Local-first moderation API with:
 
 - text moderation
-- audio-transcript moderation
+- audio moderation
 - optional local AI text scoring
 - health monitoring dashboard
 - password-protected admin panel
@@ -57,7 +57,7 @@ TRANSFORMERS_OFFLINE=1
 |---|---|---|
 | `/` | `GET` | Main moderation UI |
 | `/check/text` | `POST` | Rule-based text moderation |
-| `/check/audio` | `POST` | Rule-based transcript moderation |
+| `/check/audio` | `POST` | Rule-based audio moderation |
 | `/check/text-ai` | `POST` | Local model text moderation |
 | `/health` | `GET` | Health dashboard page |
 | `/health/status` | `GET` | Health status JSON |
@@ -79,7 +79,7 @@ curl -s -X POST http://127.0.0.1:8000/check/text \
   -d '{"text":"I will kill you"}'
 ```
 
-Audio transcript check:
+Audio check:
 
 ```bash
 curl -s -X POST http://127.0.0.1:8000/check/audio \
