@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SafeComms Admin Verify</title>
+  <style>
+    :root {
+      --bg: #0f1419;
+      --panel: #1b2430;
+      --muted: #a6b2c2;
+      --text: #edf2f7;
+      --border: #2e3a47;
+      --brand: #7ef0b8;
+      --err: #ff7b7b;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 18px;
+      background: radial-gradient(900px 500px at 100% -10%, #27445e22 0%, transparent 50%), var(--bg);
+      color: var(--text);
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    .card {
+      width: 100%;
+      max-width: 460px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+    }
+
+    h2 { margin: 0 0 8px; }
+    p { margin: 0 0 14px; color: var(--muted); }
+    label { display: block; color: var(--muted); font-size: .84rem; margin-bottom: 8px; }
+    input, button { width: 100%; border-radius: 8px; border: 1px solid var(--border); padding: 10px; }
+    input { background: #111820; color: var(--text); }
+    button { background: var(--brand); color: #0f1a13; font-weight: 700; cursor: pointer; }
+    #msg { margin-top: 10px; color: var(--err); min-height: 1.2rem; }
+  </style>
+</head>
+<body>
+  <form class="card" id="verifyForm" method="post" action="/admin-verify">
+    <h2>Admin Verify</h2>
+    <p>Enter admin password to continue.</p>
+    <label>Password
+      <input id="password" name="password" type="password" required />
+    </label>
+    <button type="submit">Continue to Admin</button>
+    <div id="msg"></div>
+  </form>
+
+  <script>
+    const form = document.getElementById("verifyForm");
+    const msg = document.getElementById("msg");
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      msg.textContent = "";
+
+      const body = new URLSearchParams(new FormData(form));
+      const res = await fetch("/admin-verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body,
+      });
+
+      if (res.redirected) {
+        window.location.href = res.url;
+        return;
+      }
+
+      if (res.ok) {
+        window.location.href = "/admin";
+        return;
+      }
+
+      const data = await res.json().catch(() => ({}));
+      msg.textContent = data.detail || "Login failed";
+    });
+  </script>
+</body>
+</html>

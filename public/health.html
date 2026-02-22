@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SafeComms Health</title>
+  <style>
+    :root {
+      --bg: #0f1419;
+      --panel: #1b2430;
+      --muted: #a6b2c2;
+      --text: #edf2f7;
+      --ok: #7ef0b8;
+      --warn: #ffd166;
+      --err: #ff7b7b;
+      --border: #2e3a47;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 18px;
+      background: radial-gradient(1000px 500px at 100% -10%, #27445e22 0%, transparent 50%), var(--bg);
+      color: var(--text);
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    .wrap { max-width: 1100px; margin: 0 auto; display: grid; gap: 14px; }
+    .card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 14px; }
+    .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+    .k { color: var(--muted); font-size: .82rem; }
+    .v { font-size: 1.1rem; font-weight: 700; margin-top: 4px; }
+    .ok { color: var(--ok); }
+    .warn { color: var(--warn); }
+    .err { color: var(--err); }
+
+    table { width: 100%; border-collapse: collapse; margin-top: 6px; }
+    th, td { text-align: left; border-bottom: 1px solid var(--border); padding: 7px 4px; font-size: .9rem; }
+    th { color: var(--muted); font-weight: 600; }
+    code { font-size: .82rem; color: var(--warn); }
+
+    @media (max-width: 980px) {
+      .grid { grid-template-columns: repeat(2, 1fr); }
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <section class="card">
+      <h2>Safecomms API Health</h2>
+      <p id="meta" class="k">Measuring response time every 5 minutes.</p>
+      <p class="k">Source: <code>/health/metrics</code></p>
+    </section>
+
+    <section class="card">
+      <div class="grid">
+        <div><div class="k">Current Status</div><div id="status" class="v">-</div></div>
+        <div><div class="k">Uptime</div><div id="uptime" class="v">-</div></div>
+        <div><div class="k">Steady Uptime</div><div id="steady" class="v">-</div></div>
+        <div><div class="k">Downtime</div><div id="downtime" class="v">-</div></div>
+        <div><div class="k">API Response Time</div><div id="rt" class="v">-</div></div>
+        <div><div class="k">Availability</div><div id="availability" class="v">-</div></div>
+        <div><div class="k">Total Probes</div><div id="probes" class="v">-</div></div>
+        <div><div class="k">Failed Probes</div><div id="failed" class="v">-</div></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h3>Reported Errors</h3>
+      <table>
+        <thead>
+          <tr><th>Time</th><th>Path</th><th>Error</th></tr>
+        </thead>
+        <tbody id="errors"></tbody>
+      </table>
+    </section>
+  </main>
+
+  <script>
+    const secToText = (sec) => {
+      const s = Math.max(0, Math.floor(sec || 0));
+      const d = Math.floor(s / 86400);
+      const h = Math.floor((s % 86400) / 3600);
+      const m = Math.floor((s % 3600) / 60);
+      const r = s % 60;
+      return `${d}d ${h}h ${m}m ${r}s`;
+    };
+
+    function setClass(el, value, mode = "status") {
+      el.classList.remove("ok", "warn", "err");
+      if (mode === "status") {
+        if (value === true) el.classList.add("ok");
+        else if (value === false) el.classList.add("err");
+        else el.classList.add("warn");
+        return;
+      }
+      if (mode === "availability") {
+        if (value >= 99.9) el.classList.add("ok");
+        else if (value >= 95) el.classList.add("warn");
+        else el.classList.add("err");
+      }
+    }
+
+    async function loadMetrics() {
+      const res = await fetch("/health/metrics");
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return res.json();
+    }
+
+    function render(data) {
+      const statusEl = document.getElementById("status");
+      const lastOk = data.last_probe_success;
+      statusEl.textContent = lastOk === true ? "UP" : lastOk === false ? "DOWN" : "STARTING";
+      setClass(statusEl, lastOk, "status");
+
+      document.getElementById("uptime").textContent = secToText(data.uptime_seconds);
+      document.getElementById("steady").textContent = secToText(data.steady_uptime_seconds);
+      document.getElementById("downtime").textContent = secToText(data.downtime_seconds);
+      document.getElementById("rt").textContent = data.last_response_ms == null ? "-" : `${data.last_response_ms.toFixed(2)} ms`;
+
+      const availabilityEl = document.getElementById("availability");
+      availabilityEl.textContent = `${data.availability_percent.toFixed(4)}%`;
+      setClass(availabilityEl, data.availability_percent, "availability");
+
+      document.getElementById("probes").textContent = String(data.total_probes);
+      document.getElementById("failed").textContent = String(data.failed_probes);
+
+      const intervalMin = Math.round((data.probe_interval_seconds || 300) / 60);
+      const lastProbe = data.last_probe_at ? new Date(data.last_probe_at).toLocaleString() : "n/a";
+      document.getElementById("meta").textContent = `Measuring response time every ${intervalMin} minutes. Last probe: ${lastProbe}.`;
+
+      const body = document.getElementById("errors");
+      body.innerHTML = "";
+      const errors = (data.recent_errors || []).slice().reverse();
+      if (!errors.length) {
+        const row = document.createElement("tr");
+        row.innerHTML = `<td colspan="3" class="k">No reported errors.</td>`;
+        body.appendChild(row);
+        return;
+      }
+
+      for (const e of errors) {
+        const row = document.createElement("tr");
+        row.innerHTML = `<td>${new Date(e.time).toLocaleString()}</td><td><code>${e.path}</code></td><td>${e.error}</td>`;
+        body.appendChild(row);
+      }
+    }
+
+    async function tick() {
+      try {
+        const data = await loadMetrics();
+        render(data);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    tick();
+    setInterval(tick, 10000);
+  </script>
+</body>
+</html>

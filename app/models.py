@@ -14,3 +14,12 @@ class CheckResponse(BaseModel):
     category: str
     matched_terms: list[str]
     reason: str
+
+
+class ErrorReportRequest(BaseModel):
+    path: str = Field(default="/manual", min_length=1, max_length=255)
+    message: str = Field(min_length=1, max_length=2000)
+
+
+class ErrorResolveRequest(BaseModel):
+    resolved_by: str = Field(default="admin", min_length=1, max_length=120)

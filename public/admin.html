@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SafeComms Admin</title>
+  <style>
+    :root {
+      --bg: #0f1419;
+      --panel: #1b2430;
+      --muted: #a6b2c2;
+      --text: #edf2f7;
+      --border: #2e3a47;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 18px;
+      background: radial-gradient(1000px 500px at 100% -10%, #27445e22 0%, transparent 50%), var(--bg);
+      color: var(--text);
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    .wrap { max-width: 1100px; margin: 0 auto; display: grid; gap: 14px; }
+    .card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 14px; }
+    .row { display: flex; gap: 10px; flex-wrap: wrap; }
+    .field { flex: 1; min-width: 220px; }
+    label { display: block; color: var(--muted); font-size: .82rem; margin-bottom: 8px; }
+    input, textarea, button { width: 100%; border-radius: 8px; border: 1px solid var(--border); padding: 10px; background: #111820; color: var(--text); }
+    button { background: #7ef0b8; color: #0f1a13; font-weight: 700; cursor: pointer; }
+    table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+    th, td { border-bottom: 1px solid var(--border); padding: 8px 4px; font-size: .9rem; text-align: left; }
+    th { color: var(--muted); }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: .84rem; }
+    .muted { color: var(--muted); }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <section class="card">
+      <h2>Admin Panel</h2>
+      <div class="row">
+        <div class="field"><button id="logoutBtn">Logout</button></div>
+      </div>
+      <div id="status" class="muted"></div>
+    </section>
+
+    <section class="card">
+      <h2>Error Reports</h2>
+      <div class="row">
+        <div class="field"><label>Path<input id="errPath" value="/manual" /></label></div>
+        <div class="field"><label>Message<textarea id="errMsg" rows="3" placeholder="Describe the issue..."></textarea></label></div>
+        <div class="field"><label>&nbsp;<button id="reportErr">Report Error</button></label></div>
+      </div>
+      <table>
+        <thead><tr><th>ID</th><th>Source</th><th>Path</th><th>Message</th><th>Created</th><th>Resolved</th><th>Actions</th></tr></thead>
+        <tbody id="errorsTable"></tbody>
+      </table>
+    </section>
+  </main>
+
+  <script>
+    const el = (id) => document.getElementById(id);
+
+    async function api(path, method = "GET", body = null) {
+      const headers = {};
+      if (body != null) headers["Content-Type"] = "application/json";
+      const res = await fetch(path, {
+        method,
+        headers,
+        body: body == null ? null : JSON.stringify(body),
+      });
+      if (res.status === 401) {
+        window.location.href = "/admin-verify";
+        return;
+      }
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(`${res.status}: ${data.detail || "request failed"}`);
+      return data;
+    }
+
+    function renderErrors(errors) {
+      const tbody = el("errorsTable");
+      tbody.innerHTML = "";
+      if (!errors.length) {
+        tbody.innerHTML = `<tr><td colspan="7" class="muted">No error reports.</td></tr>`;
+        return;
+      }
+      for (const e of errors) {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${e.id}</td>
+          <td>${e.source}</td>
+          <td class="mono">${e.path}</td>
+          <td>${e.message}</td>
+          <td class="mono">${e.created_at}</td>
+          <td class="mono">${e.resolved_at || "-"}</td>
+          <td>
+            ${e.resolved_at ? "" : `<button data-resolve="${e.id}">Resolve</button>`}
+            <button data-delete="${e.id}">Delete</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      }
+      tbody.querySelectorAll("button[data-resolve]").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          try {
+            await api(`/admin/api/errors/${btn.dataset.resolve}/resolve`, "POST", { resolved_by: "admin" });
+            await refreshErrors();
+          } catch (err) {
+            alert(err.message);
+          }
+        });
+      });
+      tbody.querySelectorAll("button[data-delete]").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          try {
+            await api(`/admin/api/errors/${btn.dataset.delete}`, "DELETE");
+            await refreshErrors();
+          } catch (err) {
+            alert(err.message);
+          }
+        });
+      });
+    }
+
+    async function refreshErrors() {
+      const data = await api("/admin/api/errors?include_resolved=true");
+      if (data) renderErrors(data.errors || []);
+    }
+
+    el("logoutBtn").addEventListener("click", async () => {
+      await fetch("/admin/logout", { method: "POST" });
+      window.location.href = "/admin-verify";
+    });
+
+    el("reportErr").addEventListener("click", async () => {
+      try {
+        const path = el("errPath").value.trim() || "/manual";
+        const message = el("errMsg").value.trim();
+        if (!message) return;
+        await api("/admin/api/errors/report", "POST", { path, message });
+        el("errMsg").value = "";
+        await refreshErrors();
+      } catch (err) {
+        alert(err.message);
+      }
+    });
+
+    (async () => {
+      try {
+        await refreshErrors();
+        el("status").textContent = "Session active.";
+      } catch (err) {
+        el("status").textContent = err.message;
+      }
+    })();
+  </script>
+</body>
+</html>

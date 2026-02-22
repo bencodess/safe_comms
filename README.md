@@ -1,16 +1,30 @@
-# safecomms moderation API
+# SafeComms Moderation API
 
-Clean local moderation API with English-only docs and UI.
-It supports text checks and audio-transcript checks.
+Local-first moderation API with a web UI, health dashboard, and password-protected admin panel.
 
-## Features
+## What It Does
 
-- `POST /check/text`: keyword-based moderation
-- Term lists are stored in `app/data/moderation_terms.json`
-- `POST /check/audio`: keyword-based moderation for transcripts
-- `POST /check/text-ai`: local text classification model
+- Moderates text via large local term lists
+- Moderates audio transcripts via the same moderation engine
+- Optionally runs local text-model classification (`/check/text-ai`)
+- Tracks health metrics (uptime, downtime, response probe time)
+- Supports admin workflows for error management
 
-## Setup
+## Core Endpoints
+
+| Endpoint | Method | Purpose |
+|---|---|---|
+| `/` | `GET` | Main moderation UI |
+| `/check/text` | `POST` | Text moderation |
+| `/check/audio` | `POST` | Transcript moderation |
+| `/check/text-ai` | `POST` | Local model-based text check |
+| `/health` | `GET` | Health dashboard page |
+| `/health/status` | `GET` | Health status JSON |
+| `/health/metrics` | `GET` | Health metrics JSON |
+| `/admin` | `GET` | Admin panel (session protected) |
+| `/admin-verify` | `GET/POST` | Admin password verification |
+
+## Quickstart
 
 ```bash
 python -m venv .venv
@@ -20,53 +34,115 @@ cp .env.example .env
 uvicorn main:app --reload
 ```
 
-## Optional local model
+Open:
 
-Install optional model dependencies:
+- App: `http://127.0.0.1:8000/`
+- Health: `http://127.0.0.1:8000/health`
+- Admin: `http://127.0.0.1:8000/admin`
+
+Project structure:
+
+- `public/` contains all HTML pages
+- `src/` contains startup and utility scripts
+
+## Configuration
+
+Edit `.env`:
+
+```env
+ADMIN_PASSWORD=64826482B@n
+LOCAL_TOXIC_MODEL_DIR=models/martin-ha-toxic-comment-model
+HF_HUB_OFFLINE=1
+TRANSFORMERS_OFFLINE=1
+```
+
+Moderation terms live in:
+
+- `app/data/moderation_terms.json`
+
+## Admin Flow
+
+1. Visit `/admin`
+2. You are redirected to `/admin-verify`
+3. Enter `ADMIN_PASSWORD`
+4. You are redirected back to `/admin` with an admin session cookie
+
+From the admin panel you can:
+
+- report errors
+- resolve errors
+- delete errors
+
+## Optional Local Text Model
+
+Install optional dependencies:
 
 ```bash
 pip install -r requirements-ai.txt
 ```
 
-Download local text model:
+Download model locally:
 
 ```bash
-python scripts/download_martin_ha_model.py
+python src/scripts/download_martin_ha_model.py
 ```
 
-## API examples
-
-Text check:
+Start with installer script:
 
 ```bash
-curl -s -X POST localhost:8000/check/text \
+./src/start.sh
+```
+
+Keepalive mode:
+
+```bash
+./src/keepalive.sh
+```
+
+## Request Examples
+
+### Text moderation
+
+```bash
+curl -s -X POST http://127.0.0.1:8000/check/text \
   -H 'content-type: application/json' \
   -d '{"text":"I will kill you"}'
 ```
 
-Audio transcript check:
+### Audio transcript moderation
 
 ```bash
-curl -s -X POST localhost:8000/check/audio \
+curl -s -X POST http://127.0.0.1:8000/check/audio \
   -H 'content-type: application/json' \
   -d '{"transcript":"hello and welcome"}'
 ```
 
-Local text model check:
+### Local model text check
 
 ```bash
-curl -s -X POST 'localhost:8000/check/text-ai?threshold=0.5' \
+curl -s -X POST 'http://127.0.0.1:8000/check/text-ai?threshold=0.5' \
   -H 'content-type: application/json' \
   -d '{"text":"you are stupid"}'
 ```
-
-## Notes
-
-- `/check/text-ai` returns `503` if local model files or optional dependencies are missing.
-- Open `http://127.0.0.1:8000/` for the UI.
 
 ## Tests
 
 ```bash
 pytest -q
 ```
+
+## Dependencies
+
+- FastAPI
+- Uvicorn
+- Pydantic
+- Hugging Face Transformers
+- PyTorch
+
+## Credits
+
+- bencodess
+
+## Contributors
+
+- Ben
