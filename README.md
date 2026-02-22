@@ -2,9 +2,11 @@
 
 Local-first moderation API with a web UI, health dashboard, and password-protected admin panel.
 
-## Live Language Widget
+## Stats
 
-![Top Languages](https://github-readme-stats.vercel.app/api/top-langs/?username=bencodess&layout=compact&langs_count=8&hide_border=true)
+![Top Language](https://img.shields.io/github/languages/top/bencodess/safe_comms?style=for-the-badge)
+![Language Count](https://img.shields.io/github/languages/count/bencodess/safe_comms?style=for-the-badge)
+![Repo Size](https://img.shields.io/github/repo-size/bencodess/safe_comms?style=for-the-badge)
 
 ## What It Does
 
