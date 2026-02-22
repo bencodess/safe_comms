@@ -1,39 +1,58 @@
 # safecomms moderation API
 
-Einfache SafeComms-API ohne Auth und ohne Secrets.
-Sie prueft Text/Bildbeschreibung/Audio-Transcript mit Wortliste,
-und optional lokal mit einem heruntergeladenen Hugging Face Modell.
+Clean local moderation API with English-only docs and UI.
+It supports text checks and audio-transcript checks.
 
-## Start
+## Features
+
+- `POST /check/text`: keyword-based moderation
+- Term lists are stored in `app/data/moderation_terms.json`
+- `POST /check/audio`: keyword-based moderation for transcripts
+- `POST /check/text-ai`: local text classification model
+
+## Setup
 
 ```bash
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
+cp .env.example .env
 uvicorn main:app --reload
 ```
 
-## Optional: martin-ha lokal herunterladen (keine Inference-API)
+## Optional local model
+
+Install optional model dependencies:
 
 ```bash
-source .venv/bin/activate
 pip install -r requirements-ai.txt
+```
+
+Download local text model:
+
+```bash
 python scripts/download_martin_ha_model.py
 ```
 
-Das Modell landet lokal in:
-- `models/martin-ha-toxic-comment-model`
+## API examples
 
-## Endpunkte
+Text check:
 
-- `GET /` -> Web-UI
-- `GET /health`
-- `POST /check/text`
-- `POST /check/image`
-- `POST /check/audio`
-- `POST /check/text-ai` (nutzt nur lokales Modell, falls vorhanden)
+```bash
+curl -s -X POST localhost:8000/check/text \
+  -H 'content-type: application/json' \
+  -d '{"text":"I will kill you"}'
+```
 
-## AI-Check Beispiel (lokal)
+Audio transcript check:
+
+```bash
+curl -s -X POST localhost:8000/check/audio \
+  -H 'content-type: application/json' \
+  -d '{"transcript":"hello and welcome"}'
+```
+
+Local text model check:
 
 ```bash
 curl -s -X POST 'localhost:8000/check/text-ai?threshold=0.5' \
@@ -41,7 +60,10 @@ curl -s -X POST 'localhost:8000/check/text-ai?threshold=0.5' \
   -d '{"text":"you are stupid"}'
 ```
 
-Wenn Modell oder AI-Dependencies fehlen, antwortet der Endpoint mit `503`.
+## Notes
+
+- `/check/text-ai` returns `503` if local model files or optional dependencies are missing.
+- Open `http://127.0.0.1:8000/` for the UI.
 
 ## Tests
 

@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="de">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -56,7 +56,7 @@
     .hero h1 { margin: 0; font-size: 1.55rem; }
     .hero p { margin: 8px 0 0; color: var(--muted); }
 
-    .card { grid-column: span 4; padding: 14px; }
+    .card { grid-column: span 6; padding: 14px; }
     .card h2 { margin: 0 0 10px; font-size: 1rem; }
 
     label {
@@ -120,11 +120,11 @@
   <main class="wrap">
     <section class="hero">
       <h1>SafeComms Moderation API</h1>
-      <p>Kein Login, kein Secret. Nur schnelle Checks fuer Text, Bildbeschreibung und Audio-Transcript.</p>
+      <p>Fast moderation checks for text and audio transcripts.</p>
     </section>
 
     <section class="card full">
-      <h2>Config</h2>
+      <h2>Configuration</h2>
       <label>Base URL
         <input id="baseUrl" placeholder="http://localhost:8000" />
       </label>
@@ -142,15 +142,6 @@
     </section>
 
     <section class="card">
-      <h2>Image Check</h2>
-      <label>Image Description
-        <textarea id="imageInput" placeholder="describe image content..."></textarea>
-      </label>
-      <button id="checkImage">Check Image</button>
-      <div id="imageStatus" class="status"></div>
-    </section>
-
-    <section class="card">
       <h2>Audio Check</h2>
       <label>Audio Transcript
         <textarea id="audioInput" placeholder="paste transcript..."></textarea>
@@ -160,8 +151,8 @@
     </section>
 
     <section class="card full">
-      <h2>Model Text Check (Local)</h2>
-      <label>Text (model)
+      <h2>Model Text Check</h2>
+      <label>Text
         <textarea id="aiTextInput" placeholder="text for local model check"></textarea>
       </label>
       <label>Threshold (0.0 - 1.0)
@@ -199,7 +190,7 @@
       setStatus(el("configStatus"), `Base URL saved: ${state.baseUrl}`);
     }
 
-    async function callApi(path, payload) {
+    async function callJson(path, payload) {
       let res;
       try {
         res = await fetch(`${state.baseUrl}${path}`, {
@@ -207,49 +198,33 @@
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
         });
-      } catch (err) {
-        throw new Error(
-          `NetworkError: cannot reach ${state.baseUrl}. Start API with 'uvicorn main:app --reload' and use http://127.0.0.1:8000`
-        );
+      } catch {
+        throw new Error(`NetworkError: cannot reach ${state.baseUrl}. Start API with 'uvicorn main:app --reload'.`);
       }
       const body = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        throw new Error(`${res.status}: ${body.detail || "request failed"}`);
-      }
+      if (!res.ok) throw new Error(`${res.status}: ${body.detail || "request failed"}`);
       return body;
     }
 
-    function renderResult(data) {
-      return JSON.stringify(data, null, 2);
-    }
+    const render = (data) => JSON.stringify(data, null, 2);
 
     el("saveConfig").addEventListener("click", saveConfig);
 
     el("checkText").addEventListener("click", async () => {
       saveConfig();
       try {
-        const data = await callApi("/check/text", { text: el("textInput").value });
-        setStatus(el("textStatus"), renderResult(data), data.safe);
+        const data = await callJson("/check/text", { text: el("textInput").value });
+        setStatus(el("textStatus"), render(data), data.safe);
       } catch (err) {
         setStatus(el("textStatus"), err.message, false);
-      }
-    });
-
-    el("checkImage").addEventListener("click", async () => {
-      saveConfig();
-      try {
-        const data = await callApi("/check/image", { description: el("imageInput").value });
-        setStatus(el("imageStatus"), renderResult(data), data.safe);
-      } catch (err) {
-        setStatus(el("imageStatus"), err.message, false);
       }
     });
 
     el("checkAudio").addEventListener("click", async () => {
       saveConfig();
       try {
-        const data = await callApi("/check/audio", { transcript: el("audioInput").value });
-        setStatus(el("audioStatus"), renderResult(data), data.safe);
+        const data = await callJson("/check/audio", { transcript: el("audioInput").value });
+        setStatus(el("audioStatus"), render(data), data.safe);
       } catch (err) {
         setStatus(el("audioStatus"), err.message, false);
       }
@@ -259,10 +234,10 @@
       saveConfig();
       try {
         const threshold = Number(el("aiThreshold").value || "0.5");
-        const data = await callApi(`/check/text-ai?threshold=${encodeURIComponent(threshold)}`, {
-          text: el("aiTextInput").value
+        const data = await callJson(`/check/text-ai?threshold=${encodeURIComponent(threshold)}`, {
+          text: el("aiTextInput").value,
         });
-        setStatus(el("aiTextStatus"), renderResult(data), data.safe);
+        setStatus(el("aiTextStatus"), render(data), data.safe);
       } catch (err) {
         setStatus(el("aiTextStatus"), err.message, false);
       }

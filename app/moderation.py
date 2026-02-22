@@ -1,107 +1,28 @@
 from __future__ import annotations
 
+import json
 from itertools import combinations, product
+from pathlib import Path
 import re
 
-BASE_BAD_TERMS = {
-    "violence": [
-        "kill", "killing", "killer", "murder", "massacre", "slaughter", "execute", "execution",
-        "behead", "decapitate", "assassinate", "shoot", "gun down", "stab", "knife attack",
-        "bomb", "bombing", "explosive", "explode", "detonate", "terror", "terrorist",
-        "hostage", "kidnap", "abduct", "arson", "burn alive", "torture", "lynch", "gore",
-        "bloodbath", "genocide", "ethnic cleansing", "war crime", "hitman", "sniper",
-        "school shooting", "mass shooting", "suicide bomb", "car bomb", "grenade", "molotov",
-        "sprengstoff", "anschlag", "attentat", "amoklauf", "erschiessen", "erstechen",
-        "toeten", "mord", "folter", "blutbad", "waffengewalt", "gewaltfantasie", "anfassen", "rape", "raping",
-        "rayping", "ich werde dich finden", "i will find you", "hurt you", "lock you", "oil up", "oiled up", "epstein"
-    ],
-    "hate": [
-        "nazi", "neo nazi", "white power", "kkk", "supremacist", "racist", "race war",
-        "antisemitic", "anti semitic", "judenhass", "hate speech", "ethnic hatred",
-        "xenophobic", "homophobic", "transphobic", "islamophobic", "bigot", "bigotry",
-        "nigger", "nigga", "niqqa", "slur", "racial slur", "heil hitler", "sieg heil",
-        "master race", "subhuman", "exterminate them", "deport them all", "gas them",
-        "replace theory", "1488", "ausländer raus", "volksverräter", "rassenhass",
-        "menschenverachtend", "n1gga"
-    ],
-    "sexual": [
-        "porn", "porno", "pornhub", "nude", "nudes", "nudity", "nsfw", "explicit", "xxx",
-        "hardcore", "fetish", "bdsm", "deepthroat", "blowjob", "handjob", "anal", "cum",
-        "creampie", "sexting", "sex chat", "onlyfans", "camgirl", "cam sex", "escort",
-        "prostitute", "brothel", "incest", "bestiality", "rape fantasy", "child porn",
-        "cp", "loli", "lolicon", "underage sex", "minor nudes", "revenge porn",
-        "nacktbild", "sexvideo", "pornografisch", "erotisch", "intimfoto", "cum", "cumshot", "comshot"
-    ],
-    "drugs": [
-        "cocaine", "coke", "crack", "meth", "methamphetamine", "heroin", "fentanyl",
-        "opioid", "oxycodone", "morphine", "lsd", "ecstasy", "mdma", "ketamine",
-        "pcp", "amphetamine", "speed", "weed", "marijuana", "cannabis", "hash",
-        "drug deal", "dealer", "buy drugs", "sell drugs", "overdose", "inject heroin",
-        "snort cocaine", "cook meth", "cartel", "narcotics", "dope", "pill mill",
-        "drogen", "drogendealer", "koks", "gras", "hasch", "ecstasy pillen", "btm", "crackhead"
-    ],
-    "abuse": [
-        "child abuse", "child sexual abuse", "grooming", "molest", "molestation",
-        "domestic violence", "intimate partner violence", "self harm", "self-harm",
-        "cut myself", "cutting", "suicide", "kill myself", "hang myself", "overdose myself",
-        "abuse children", "beat your wife", "beat your kid", "shaken baby", "csa",
-        "csam", "rape child", "underage exploitation", "forced marriage", "human trafficking",
-        "zwangsprostitution", "kindesmissbrauch", "selbstmord", "ritzen", "suizid", "haeusliche gewalt", "homicide"
-    ],
-    "profanity": [
-        "fuck", "fucking", "motherfucker", "shit", "bullshit", "bitch", "bastard", "asshole",
-        "dickhead", "cunt", "wanker", "prick", "slut", "whore", "son of a bitch",
-        "retard", "dumbass", "jackass", "fucker", "idiot", "moron", "piece of shit",
-        "fick", "scheisse", "miststueck", "hurensohn", "fotze", "arschloch", "wichser",
-        "spast", "nutte", "verpiss dich", "halt die fresse", "opfer", "pussy",
-    ],
-    "scam": [
-        "credit card dump", "stolen card", "cvv", "fullz", "phishing", "fake login",
-        "account takeover", "steal password", "malware", "ransomware", "keylogger",
-        "botnet", "ddos for hire", "hack account", "crack password", "bruteforce",
-        "sim swap", "money mule", "ponzi", "pump and dump", "advance fee fraud",
-        "romance scam", "gift card scam", "wire fraud", "bank fraud", "identity theft",
-        "betrug", "phishing link", "konto hacken", "daten klauen",
-    ],
-}
+CONFIG_PATH = Path(__file__).resolve().parent / "data" / "moderation_terms.json"
 
-EXTRA_PROFANITY_SEEDS = [
-    "douche", "douchebag", "dipshit", "shithead", "shitface", "piss", "pissed", "piss off",
-    "freak", "loser", "garbage", "trash", "scumbag", "skank", "hoe", "ho", "twat", "jerk",
-    "imbecile", "stupid", "idiotic", "dumb", "brain dead", "braindead", "cretin", "clown",
-    "clownass", "wannabe", "sucker", "lame", "pathetic", "degenerate", "pervert", "psycho",
-    "lunatic", "maniac", "weirdo", "fool", "tool", "numbnuts", "nutsack", "ballsack",
-    "arse", "arsehole", "bollocks", "bloody hell", "f off", "screw you", "eat shit",
-    "penner", "trottel", "depp", "idiotisch", "huso", "fotz", "spacken", "mongo",
-    "bimbo", "simp", "cringe", "incel", "soyboy", "beta male", "alpha clown", "dogshit",
-    "shitshow", "shitstorm", "asshat", "assclown", "asswipe", "butthead", "cocksucker",
-    "cock", "dick", "penis", "boobs", "tits", "milf", "dildo", "buttplug", "cumshot",
-    "jerkoff", "wixxer", "wixxa", "schwachkopf", "vollidiot", "knecht", "lappen",
-]
 
-BASE_PREFIXES = [
-    "dirty", "filthy", "stupid", "dumb", "crazy", "foul", "gross", "toxic", "bloody", "damn",
-    "hard", "extreme", "pure", "ultra", "mega", "insane", "savage", "aggressive", "nasty", "vile",
-    "evil", "brutal", "raw", "wild", "mad", "cold", "dark", "loud", "chaos", "mean",
-]
+def _load_config() -> dict:
+    if not CONFIG_PATH.exists():
+        raise RuntimeError(f"Missing moderation config: {CONFIG_PATH}")
+    return json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
 
-BASE_SUFFIXES = [
-    "head", "face", "brain", "mouth", "rat", "pig", "dog", "lord", "king", "queen",
-    "mode", "move", "plan", "crew", "zone", "style", "energy", "storm", "wave", "pattern",
-]
 
-LEET_MAP = {
-    "a": ["4", "@"],
-    "e": ["3"],
-    "i": ["1", "!"],
-    "o": ["0"],
-    "s": ["5", "$"],
-    "t": ["7"],
-    "g": ["9"],
-}
+_CONFIG = _load_config()
 
-TARGET_BASE_TERMS = 10000
-TARGET_OBFUSCATED_TERMS = 10000
+BASE_BAD_TERMS: dict[str, list[str]] = _CONFIG["BASE_BAD_TERMS"]
+EXTRA_PROFANITY_SEEDS: list[str] = _CONFIG["EXTRA_PROFANITY_SEEDS"]
+BASE_PREFIXES: list[str] = _CONFIG["BASE_PREFIXES"]
+BASE_SUFFIXES: list[str] = _CONFIG["BASE_SUFFIXES"]
+LEET_MAP: dict[str, list[str]] = _CONFIG["LEET_MAP"]
+TARGET_BASE_TERMS: int = int(_CONFIG["TARGET_BASE_TERMS"])
+TARGET_OBFUSCATED_TERMS: int = int(_CONFIG["TARGET_OBFUSCATED_TERMS"])
 
 
 def _single_word_terms(terms: dict[str, set[str]]) -> dict[str, str]:
@@ -303,5 +224,4 @@ def moderate_text(content: str) -> tuple[bool, str, list[str], str]:
         return True, "clean", [], "No risky terms detected."
 
     unique_terms = sorted(set(found))
-    return False, category, unique_terms, "Potentially unsafe content detected. If error please view README.md"
-
+    return False, category, unique_terms, "Potentially unsafe content detected."
