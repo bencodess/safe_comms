@@ -10,6 +10,7 @@ import secrets
 from dotenv import load_dotenv
 from fastapi import Cookie, Depends, FastAPI, Form, HTTPException, Query, Request, status
 from fastapi.responses import FileResponse, RedirectResponse
+from fastapi.staticfiles import StaticFiles
 
 from app.admin_store import AdminStore
 from app.local_toxic_model import ai_check_to_response
@@ -165,6 +166,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="safecomms API", version="2.6.0", lifespan=lifespan)
+app.mount("/assets", StaticFiles(directory=PUBLIC_DIR / "assets"), name="assets")
 
 
 @app.middleware("http")

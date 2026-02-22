@@ -110,6 +110,19 @@
 
     .full { grid-column: span 12; }
 
+    .page-footer {
+      max-width: 1100px;
+      margin: 14px auto 0;
+      display: flex;
+      justify-content: center;
+    }
+
+    .human-badge {
+      width: min(100%, 280px);
+      height: auto;
+      opacity: .96;
+    }
+
     @media (max-width: 980px) {
       .card { grid-column: span 12; }
       body { padding: 12px; }
@@ -162,6 +175,9 @@
       <div id="aiTextStatus" class="status"></div>
     </section>
   </main>
+  <footer class="page-footer">
+    <img class="human-badge" src="/assets/developed-by-human-badge.svg" alt="Developed by Human - Not by AI badge" />
+  </footer>
 
   <script>
     const el = (id) => document.getElementById(id);
