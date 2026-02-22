@@ -1,5 +1,9 @@
 # SafeComms Moderation API
 
+![Python](https://img.shields.io/badge/language-Python-3776AB?logo=python&logoColor=white)
+![Shell](https://img.shields.io/badge/language-Shell-121011?logo=gnu-bash&logoColor=white)
+![HTML](https://img.shields.io/badge/language-HTML-E34F26?logo=html5&logoColor=white)
+
 Local-first moderation API with a web UI, health dashboard, and password-protected admin panel.
 
 ## What It Does
