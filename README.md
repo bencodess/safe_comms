@@ -56,7 +56,7 @@ Project structure:
 Edit `.env`:
 
 ```env
-ADMIN_PASSWORD=64826482B@n
+ADMIN_PASSWORD=example123
 LOCAL_TOXIC_MODEL_DIR=models/martin-ha-toxic-comment-model
 HF_HUB_OFFLINE=1
 TRANSFORMERS_OFFLINE=1
