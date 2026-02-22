@@ -9,7 +9,7 @@ import secrets
 
 from dotenv import load_dotenv
 from fastapi import Cookie, Depends, FastAPI, Form, HTTPException, Query, Request, status
-from fastapi.responses import FileResponse, RedirectResponse
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.admin_store import AdminStore
@@ -25,6 +25,12 @@ PUBLIC_DIR = BASE_DIR / "public"
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "")
 ADMIN_DB_PATH = os.getenv("ADMIN_DB_PATH", "safecomms_admin.db")
 ADMIN_SESSION_TTL_SECONDS = int(os.getenv("ADMIN_SESSION_TTL_SECONDS", "43200"))
+RATE_LIMIT_ENABLED = os.getenv("RATE_LIMIT_ENABLED", "0").lower() in {"1", "true", "yes", "on"}
+RATE_LIMIT_MAX_REQUESTS = int(os.getenv("RATE_LIMIT_MAX_REQUESTS", "120"))
+RATE_LIMIT_WINDOW_SECONDS = int(os.getenv("RATE_LIMIT_WINDOW_SECONDS", "60"))
+RATE_LIMIT_PATH_PREFIXES = tuple(
+    p.strip() for p in os.getenv("RATE_LIMIT_PATH_PREFIXES", "/check").split(",") if p.strip()
+)
 admin_store = AdminStore(ADMIN_DB_PATH)
 
 
@@ -99,6 +105,43 @@ class HealthState:
             }
 
 
+class RateLimiter:
+    def __init__(
+        self,
+        enabled: bool,
+        max_requests: int,
+        window_seconds: int,
+        path_prefixes: tuple[str, ...],
+    ) -> None:
+        self.enabled = enabled
+        self.max_requests = max(1, max_requests)
+        self.window_seconds = max(1, window_seconds)
+        self.path_prefixes = path_prefixes
+        self._lock = Lock()
+        self._buckets: dict[str, tuple[float, int]] = {}
+
+    def clear(self) -> None:
+        with self._lock:
+            self._buckets.clear()
+
+    def should_limit_path(self, path: str) -> bool:
+        if not self.path_prefixes:
+            return False
+        return any(path.startswith(prefix) for prefix in self.path_prefixes)
+
+    def check_and_consume(self, key: str, now_ts: float) -> tuple[bool, float]:
+        with self._lock:
+            window_start, count = self._buckets.get(key, (now_ts, 0))
+            elapsed = now_ts - window_start
+            if elapsed >= self.window_seconds:
+                window_start, count = now_ts, 0
+            if count >= self.max_requests:
+                retry_after = max(1.0, self.window_seconds - (now_ts - window_start))
+                return False, retry_after
+            self._buckets[key] = (window_start, count + 1)
+            return True, 0.0
+
+
 def get_health_state() -> HealthState:
     state = getattr(app.state, "health_state", None)
     if state is None:
@@ -167,6 +210,38 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="safecomms API", version="2.6.0", lifespan=lifespan)
 app.mount("/assets", StaticFiles(directory=PUBLIC_DIR / "assets"), name="assets")
+rate_limiter = RateLimiter(
+    enabled=RATE_LIMIT_ENABLED,
+    max_requests=RATE_LIMIT_MAX_REQUESTS,
+    window_seconds=RATE_LIMIT_WINDOW_SECONDS,
+    path_prefixes=RATE_LIMIT_PATH_PREFIXES,
+)
+
+
+def _request_ip(request: Request) -> str:
+    forwarded_for = request.headers.get("x-forwarded-for", "")
+    if forwarded_for:
+        first = forwarded_for.split(",")[0].strip()
+        if first:
+            return first
+    return request.client.host if request.client else "unknown"
+
+
+@app.middleware("http")
+async def enforce_rate_limit(request: Request, call_next):
+    if not rate_limiter.enabled or not rate_limiter.should_limit_path(request.url.path):
+        return await call_next(request)
+
+    now_ts = _now_ts()
+    key = f"{_request_ip(request)}:{request.url.path}"
+    allowed, retry_after = rate_limiter.check_and_consume(key, now_ts)
+    if not allowed:
+        return JSONResponse(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            content={"detail": "rate limit exceeded"},
+            headers={"Retry-After": str(int(retry_after))},
+        )
+    return await call_next(request)
 
 
 @app.middleware("http")

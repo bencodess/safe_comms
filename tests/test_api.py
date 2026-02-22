@@ -156,3 +156,33 @@ def test_obfuscated_term_detected():
     assert resp.status_code == 200
     data = resp.json()
     assert data["safe"] is False
+
+
+def test_rate_limit_from_env_controls_requests():
+    client = setup_test_app()
+    original_enabled = main.rate_limiter.enabled
+    original_max = main.rate_limiter.max_requests
+    original_window = main.rate_limiter.window_seconds
+    original_prefixes = main.rate_limiter.path_prefixes
+    try:
+        main.rate_limiter.enabled = True
+        main.rate_limiter.max_requests = 2
+        main.rate_limiter.window_seconds = 60
+        main.rate_limiter.path_prefixes = ("/check",)
+        main.rate_limiter.clear()
+
+        ok1 = client.post("/check/text", json={"text": "hello"})
+        ok2 = client.post("/check/text", json={"text": "hello again"})
+        blocked = client.post("/check/text", json={"text": "third request"})
+
+        assert ok1.status_code == 200
+        assert ok2.status_code == 200
+        assert blocked.status_code == 429
+        assert blocked.json()["detail"] == "rate limit exceeded"
+        assert "Retry-After" in blocked.headers
+    finally:
+        main.rate_limiter.enabled = original_enabled
+        main.rate_limiter.max_requests = original_max
+        main.rate_limiter.window_seconds = original_window
+        main.rate_limiter.path_prefixes = original_prefixes
+        main.rate_limiter.clear()

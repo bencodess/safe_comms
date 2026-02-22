@@ -49,7 +49,17 @@ ADMIN_PASSWORD=example123
 LOCAL_TOXIC_MODEL_DIR=models/martin-ha-toxic-comment-model
 HF_HUB_OFFLINE=1
 TRANSFORMERS_OFFLINE=1
+RATE_LIMIT_ENABLED=0
+RATE_LIMIT_MAX_REQUESTS=120
+RATE_LIMIT_WINDOW_SECONDS=60
+RATE_LIMIT_PATH_PREFIXES=/check
 ```
+
+Rate limit notes:
+
+- Set `RATE_LIMIT_ENABLED=1` to enable per-IP rate limiting
+- `RATE_LIMIT_MAX_REQUESTS` applies per path and per IP within one window
+- `RATE_LIMIT_PATH_PREFIXES` supports comma-separated prefixes, e.g. `/check,/admin/api`
 
 ## Endpoints
 
